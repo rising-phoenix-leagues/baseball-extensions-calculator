@@ -433,11 +433,13 @@
         <input type="number" id="rank-input" min="1" max="9999" placeholder="e.g. 12" />
         <p class="help-text">
           Enter the player's <strong>positional rank</strong> per
-          <a href="https://www.fantasypros.com/mlb/rankings/ros-overall.php" target="_blank" rel="noopener">FantasyPros Rest-of-Season rankings</a>.
-          Filter that page by the same position you selected above and use the player's ranking within that filtered list.
+          <a href="https://www.cbssports.com/fantasy/baseball/rankings/h2h/SP/" target="_blank" rel="noopener">CBS H2H Points rankings</a>.
+          Navigate to the same position you selected above and use the player's <strong>consensus ranking</strong>.
           <br /><br />
           <em>Note:</em> Players who haven't met our league's service-time minimum should use
           <a href="https://www.fantasypros.com/mlb/rankings/dynasty-overall.php" target="_blank" rel="noopener">FantasyPros Dynasty rankings</a> instead.
+          <br /><br />
+          <strong>Floor rule:</strong> If the calculator value comes out lower than the player's current salary, their extension is instead 115% of their current salary (i.e. current&nbsp;+&nbsp;15%).
         </p>
       </div>
 
@@ -449,7 +451,7 @@
       </div>
     </div>
 
-    <p class="footer-note">Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; franchise tag = average of the top 10 salaries at the position.</p>
+    <p class="footer-note">Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide.</p>
 
   </div>
 
@@ -466,8 +468,9 @@ const DEFAULT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS96uPl
 // Window includes the rank itself: rank N -> N-3 .. N+3 (up to 7 players).
 const WINDOW = 3;
 
-// Number of top salaries averaged for the franchise tag.
-const FRANCHISE_TAG_TOP_N = 10;
+// Number of top leaguewide salaries averaged for the qualifying offer.
+// Per league rules: top 120 salaries regardless of position.
+const QUALIFYING_OFFER_TOP_N = 120;
 
 // Round the recommended extension to nearest $X for display.
 const ROUND_TO = 100000;
@@ -617,9 +620,9 @@ function poolFor(pos) {
 /* ============================================================
    Calculations
    ============================================================ */
-function franchiseTag(pool) {
-  if (!pool.length) return null;
-  const top = pool.slice(0, FRANCHISE_TAG_TOP_N);
+function qualifyingOffer() {
+  if (!players.length) return null;
+  const top = [...players].sort((a, b) => b.salary - a.salary).slice(0, QUALIFYING_OFFER_TOP_N);
   const sum = top.reduce((s, p) => s + p.salary, 0);
   return { value: sum / top.length, players: top };
 }
@@ -663,23 +666,32 @@ function setStatus(kind, msg) {
 
 function recomputeIfReady() {
   const out = document.getElementById("results-area");
-  if (!players.length || !selectedPosition) {
-    out.innerHTML = `<div class="placeholder">Pick a position and enter a rank to see the recommended extension value.</div>`;
+  if (!players.length) {
+    out.innerHTML = `<div class="placeholder">Loading salary data…</div>`;
     return;
   }
-  const pool = poolFor(selectedPosition);
-  if (!pool.length) {
-    out.innerHTML = `<div class="placeholder">No players found at position <strong>${selectedPosition}</strong>. Check your CSV.</div>`;
-    return;
+
+  const qo = qualifyingOffer();
+
+  // Resolve position-dependent inputs once
+  let pool = null, ext = null;
+  if (selectedPosition) {
+    pool = poolFor(selectedPosition);
+    if (pool.length) {
+      const rank = parseInt(document.getElementById("rank-input").value, 10);
+      lastRank = isFinite(rank) && rank >= 1 ? rank : null;
+      ext = lastRank ? extensionValue(pool, lastRank) : null;
+    }
   }
-  const tag = franchiseTag(pool);
-  const rank = parseInt(document.getElementById("rank-input").value, 10);
-  lastRank = isFinite(rank) && rank >= 1 ? rank : null;
-  const ext = lastRank ? extensionValue(pool, lastRank) : null;
 
   let html = "";
 
-  if (ext) {
+  // 1) Extension value (or relevant placeholder)
+  if (!selectedPosition) {
+    html += `<div class="placeholder">Pick a position and enter a rank to see the recommended extension value.</div>`;
+  } else if (pool && !pool.length) {
+    html += `<div class="placeholder">No players found at position <strong>${selectedPosition}</strong>. Check your CSV.</div>`;
+  } else if (ext) {
     html += `
       <div class="result-block result-primary">
         <div class="label">Recommended extension value</div>
@@ -694,26 +706,30 @@ function recomputeIfReady() {
       </div>`;
   }
 
-  html += `
-    <div class="result-block result-secondary">
-      <div class="label">Franchise Tag <span class="pos-token">(${selectedPosition})</span></div>
-      <div class="value">${fmtRound(tag.value)}</div>
-    </div>`;
-
-  if (ext) {
-    html += renderPlayerTable("Players in extension calculation", ext.players, ext.targetIdx - (ext.rangeStart - 1));
+  // 2) Qualifying Offer (always shown once data is loaded; position-independent)
+  if (qo) {
+    html += `
+      <div class="result-block result-secondary">
+        <div class="label">Qualifying Offer <span class="pos-token">(league-wide)</span></div>
+        <div class="value">${fmtRound(qo.value)}</div>
+      </div>`;
   }
-  html += renderPlayerTable(`Top ${tag.players.length} salaries at ${selectedPosition} (franchise tag inputs)`, tag.players);
+
+  // 3) Players in the extension calculation (expandable, only when relevant)
+  if (ext) {
+    html += renderPlayerTable("Players in extension calculation", ext.players, ext.targetIdx - (ext.rangeStart - 1), ext.rangeStart);
+  }
 
   out.innerHTML = html;
 }
 
-function renderPlayerTable(title, list, highlightIdx) {
+function renderPlayerTable(title, list, highlightIdx, startRank = 1) {
   let rows = "";
   list.forEach((p, i) => {
     const cls = (i === highlightIdx) ? "highlight" : "";
+    const rank = startRank + i;
     rows += `<tr class="${cls}">
-      <td>${i + 1}</td>
+      <td>${rank}</td>
       <td>${escapeHtml(p.name)}</td>
       <td>${escapeHtml(p.team)}</td>
       <td>${p.positions.join("/")}</td>
@@ -725,7 +741,7 @@ function renderPlayerTable(title, list, highlightIdx) {
       <summary>${escapeHtml(title)}</summary>
       <div class="body">
         <table class="players">
-          <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Pos</th><th style="text-align:right">Salary</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Player</th><th>Team</th><th>Pos</th><th style="text-align:right">Salary</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
