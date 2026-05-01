@@ -695,8 +695,8 @@ function recomputeIfReady() {
     html += `
       <div class="result-block result-primary">
         <div class="label">Recommended extension value</div>
-        <div class="value">${fmtRound(ext.value)}</div>
-        <div class="sub">Exact average: ${fmt$(ext.value)} &nbsp;·&nbsp; based on ranks ${ext.rangeStart}–${ext.rangeEnd} (${ext.players.length} players) at ${selectedPosition}</div>
+        <div class="value">${fmt$(ext.value)}</div>
+        <div class="sub">Based on ranks ${ext.rangeStart}–${ext.rangeEnd} (${ext.players.length} players) at ${selectedPosition}</div>
       </div>`;
   } else {
     html += `
