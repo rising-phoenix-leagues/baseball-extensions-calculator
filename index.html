@@ -479,11 +479,8 @@
         <input type="number" id="rank-input" min="1" max="9999" placeholder="e.g. 12" />
         <p class="help-text">
           Enter the player's <strong>positional rank</strong> per
-          <a href="https://www.cbssports.com/fantasy/baseball/rankings/h2h/SP/" target="_blank" rel="noopener">CBS H2H Points rankings</a>.
-          Navigate to the same position you selected above and use the player's <strong>consensus ranking</strong>.
-          <br /><br />
-          <em>Note:</em> Players who haven't met our league's service-time minimum should use
-          <a href="https://www.fantasypros.com/mlb/rankings/dynasty-overall.php" target="_blank" rel="noopener">FantasyPros Dynasty rankings</a> instead.
+          <a href="https://www.cbssports.com/fantasy/baseball/rankings/h2h/SP/" target="_blank" rel="noopener">CBS H2H Points consensus rankings</a> and
+          <a href="https://www.fantasypros.com/mlb/rankings/dynasty-overall.php" target="_blank" rel="noopener">FantasyPros Dynasty rankings</a>, using the highest rank for the player across the two sites. For example, if Frank Thomas is ranked as the 2nd best 1B in the league on CBS H2H Points consensus rankings and the 4th best 1B in the league on FantasyPros Dynasty rankings, you enter the ranking of 4.
           <br /><br />
           <strong>Floor rule:</strong> If the calculator value comes out lower than the player's current salary, their extension is instead 115% of their current salary (i.e. current&nbsp;+&nbsp;15%).
         </p>
@@ -498,8 +495,7 @@
     </div>
 
     <p class="footer-note">
-      Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide.<br>
-      Note: Shohei Ohtani is excluded from the UT and SP extension pools due to his dual UT/SP eligibility, but is included in the qualifying offer calculation.
+      Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide. Shohei Ohtani is excluded from the UT and SP extension pools due to his dual UT/SP eligibility, but is included in the qualifying offer calculation.
     </p>
 
   </div>
@@ -523,6 +519,9 @@ const QUALIFYING_OFFER_TOP_N = 120;
 
 // Round the recommended extension to nearest $X for display.
 const ROUND_TO = 100000;
+
+// League minimum salary — the calculator will never output a value below this.
+const MIN_EXTENSION = 575000;
 
 /* ============================================================
    State
@@ -691,8 +690,13 @@ function extensionValue(pool, rank) {
   const slice = pool.slice(lo, hi + 1);
   if (!slice.length) return null;
   const sum = slice.reduce((s, p) => s + p.salary, 0);
+  const rawAvg = sum / slice.length;
+  // League minimum floor
+  const value = Math.max(rawAvg, MIN_EXTENSION);
   return {
-    value: sum / slice.length,
+    value,
+    rawValue: rawAvg,
+    floorApplied: value > rawAvg,
     players: slice,
     rangeStart: lo + 1,
     rangeEnd: hi + 1,
@@ -747,11 +751,15 @@ function recomputeIfReady() {
   } else if (pool && !pool.length) {
     html += `<div class="placeholder">No players found at position <strong>${selectedPosition}</strong>. Check your CSV.</div>`;
   } else if (ext) {
+    let sub = `Based on ranks ${ext.rangeStart}–${ext.rangeEnd} (${ext.players.length} players) at ${selectedPosition}`;
+    if (ext.floorApplied) {
+      sub += ` &nbsp;·&nbsp; league minimum applied (raw avg ${fmt$(ext.rawValue)})`;
+    }
     html += `
       <div class="result-block result-primary">
         <div class="label">Recommended extension value</div>
         <div class="value">${fmt$(ext.value)}</div>
-        <div class="sub">Based on ranks ${ext.rangeStart}–${ext.rangeEnd} (${ext.players.length} players) at ${selectedPosition}</div>
+        <div class="sub">${sub}</div>
       </div>`;
   } else {
     html += `
