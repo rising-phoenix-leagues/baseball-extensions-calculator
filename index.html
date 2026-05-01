@@ -47,17 +47,22 @@
     padding: 32px 20px 80px;
   }
 
-  /* ---------- Header ---------- */
+  /* ---------- App-bar header ---------- */
   .header {
-    text-align: center;
-    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 18px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--navy-line);
+    text-align: left;
   }
   /* Logo container — sized for the transparent-background phoenix logo
-     (natural aspect ~1.38). Width drives the display size; height is
-     auto so the full image shows without cropping. */
+     (natural aspect ~1.38). Sits left of the title in the app-bar. */
   .logo-box {
-    width: 280px;
-    margin: 0 auto 14px;
+    width: 96px;
+    flex-shrink: 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -70,19 +75,19 @@
   .logo-box svg.fallback { width: 100%; height: auto; aspect-ratio: 280 / 200; }
   h1 {
     font-family: 'Bebas Neue', 'Oswald', 'Arial Narrow', sans-serif;
-    font-weight: 800;
-    font-size: 38px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin: 0 0 6px;
-    color: var(--cream);
-  }
-  .subtitle {
-    color: var(--cream-dim);
-    font-size: 14px;
-    letter-spacing: 0.08em;
+    font-weight: 700;
+    font-size: 21px;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     margin: 0;
+    color: var(--cream);
+    line-height: 1.18;
+    flex: 1;
+    min-width: 0;
+  }
+  h1 .brand {
+    color: var(--orange);
+    margin-right: 4px;
   }
 
   /* ---------- Card ---------- */
@@ -101,10 +106,44 @@
     color: var(--orange);
     text-transform: uppercase;
     font-size: 18px;
-    margin: 0 0 18px;
+    margin: 0;
     padding-bottom: 10px;
     border-bottom: 2px solid var(--orange);
     display: inline-block;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 18px;
+  }
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--navy-line);
+    color: var(--cream-dim);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .reset-btn:hover {
+    border-color: var(--orange-soft);
+    color: var(--orange-soft);
+  }
+  .reset-btn:active {
+    transform: scale(0.97);
+  }
+  .reset-btn .icon {
+    font-size: 14px;
+    line-height: 1;
   }
 
   label.field-label {
@@ -379,7 +418,9 @@
   }
 
   @media (max-width: 520px) {
-    h1 { font-size: 28px; }
+    .header { gap: 12px; padding-bottom: 14px; margin-bottom: 18px; }
+    .logo-box { width: 64px; }
+    h1 { font-size: 16px; letter-spacing: 0.05em; }
     .pos-grid { grid-template-columns: repeat(4, 1fr); }
     .result-primary .value { font-size: 42px; }
     .card { padding: 20px; }
@@ -390,7 +431,7 @@
   <div class="wrap">
 
     <!-- ============== Header ============== -->
-    <div class="header">
+    <header class="header">
       <div class="logo-box">
         <!-- Loads logo.png if present; falls back to inline SVG monogram -->
         <img id="logo-img" src="./logo.png" alt="Rising Phoenix" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
@@ -399,9 +440,8 @@
           <text x="100" y="74" text-anchor="middle" fill="#f0e6d2" font-family="'Bebas Neue','Oswald',sans-serif" font-size="60" font-weight="700" letter-spacing="2">RP</text>
         </svg>
       </div>
-      <h1>Rising Phoenix</h1>
-      <p class="subtitle">Contract Extension Calculator</p>
-    </div>
+      <h1><span class="brand">Rising Phoenix</span> Contract Extension Calculator</h1>
+    </header>
 
     <!-- ============== Status bar ============== -->
     <div class="status-bar">
@@ -413,7 +453,13 @@
 
     <!-- ============== Calculator card ============== -->
     <div class="card">
-      <h2>Calculate Extension</h2>
+      <div class="card-header">
+        <h2>Calculate Extension</h2>
+        <button class="reset-btn" onclick="resetCalculator()" title="Clear position and rank">
+          <span class="icon">↻</span>
+          <span>Reset</span>
+        </button>
+      </div>
 
       <label class="field-label">1. Select position</label>
       <div class="pos-grid" id="position-grid">
@@ -451,7 +497,10 @@
       </div>
     </div>
 
-    <p class="footer-note">Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide.</p>
+    <p class="footer-note">
+      Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide.<br>
+      Note: Shohei Ohtani is excluded from the SP extension pool due to his dual UT/SP eligibility, but is included in the qualifying offer calculation.
+    </p>
 
   </div>
 
@@ -573,8 +622,6 @@ function normalize(rows) {
   for (const r of rows) {
     const name = (r.Player || "").trim();
     if (!name) continue;
-    // Drop Ohtani per spec (UT,SP combo breaks our position model)
-    if (/ohtani/i.test(name)) continue;
 
     const salaryRaw = (r.Salary || "").replace(/[^0-9.]/g, "");
     const salary = parseFloat(salaryRaw);
@@ -604,9 +651,17 @@ function normalize(rows) {
 // Per spec:
 //   C, 1B, 2B, 3B, SS, OF, SP, RP -> any player eligible at that position
 //   UT -> ONLY players whose entire eligibility list is exactly ["UT"]
+//
+// Special case: Ohtani is excluded from the SP extension pool because his
+// UT/SP dual-eligibility makes his $65.25M salary distort the SP rankings
+// (he isn't really a pure starting pitcher). He IS counted in the leaguewide
+// qualifying offer calculation, where he's legitimately a top earner.
 function eligibleAt(player, pos) {
   if (pos === "UT") {
     return player.positions.length === 1 && player.positions[0] === "UT";
+  }
+  if (pos === "SP" && /ohtani/i.test(player.name)) {
+    return false;
   }
   return player.positions.includes(pos);
 }
@@ -778,6 +833,22 @@ const savedPos = localStorage.getItem("rp_pos");
 if (savedPos && POS_LIST.includes(savedPos)) {
   const btn = document.querySelector(`.pos-chip[data-pos="${savedPos}"]`);
   if (btn) { btn.classList.add("active"); selectedPosition = savedPos; }
+}
+
+/* ============================================================
+   Reset
+   ============================================================ */
+function resetCalculator() {
+  document.querySelectorAll(".pos-chip").forEach(b => b.classList.remove("active"));
+  selectedPosition = null;
+  localStorage.removeItem("rp_pos");
+  const rankInput = document.getElementById("rank-input");
+  rankInput.value = "";
+  lastRank = null;
+  recomputeIfReady();
+  rankInput.blur();
+  // Scroll to top of calculator card so the user sees the cleared state
+  document.querySelector(".card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* ============================================================
