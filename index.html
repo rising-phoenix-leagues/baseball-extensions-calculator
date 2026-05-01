@@ -495,7 +495,7 @@
     </div>
 
     <p class="footer-note">
-      Rising Phoenix Baseball • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide. Shohei Ohtani is excluded from the UT and SP extension pools due to his dual UT/SP eligibility, but is included in the qualifying offer calculation.
+      Rising Phoenix Baseball <span id="footer-year">2026</span> • Methodology: extension value = average salary of ranks N&minus;3 through N+3 at the selected position; qualifying offer = average of the top 120 salaries leaguewide • Shohei Ohtani is excluded from the UT and SP extension pools due to his dual UT/SP eligibility, but is included in the qualifying offer calculation.
     </p>
 
   </div>
@@ -862,6 +862,9 @@ function resetCalculator() {
 /* ============================================================
    Boot
    ============================================================ */
+const yearEl = document.getElementById("footer-year");
+if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
 loadData();
 </script>
 
