@@ -29,11 +29,19 @@
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  /* Solid navy on html so iOS rubber-band overscroll never flashes white,
+     and so the area behind translucent system bars (status bar, address bar)
+     stays in-palette. */
+  html {
+    background: var(--navy-deep);
+  }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: radial-gradient(ellipse at top, #15265a 0%, var(--navy) 40%, var(--navy-deep) 100%);
+    background-attachment: fixed;     /* gradient stays put on scroll */
     color: var(--cream);
     min-height: 100vh;
+    min-height: 100dvh;               /* dynamic viewport height — handles iOS UI bars */
     -webkit-font-smoothing: antialiased;
     line-height: 1.5;
   }
